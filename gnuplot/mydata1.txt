@@ -1,0 +1,2 @@
+rate(Mbps) throughput(Mbps) GoodPut(Mbps)
+10 7.59 6.77

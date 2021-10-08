@@ -14,28 +14,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */ 
+ */
 
 #include "ns3/core-module.h"
 #include "ns3/mobility-module.h"
+#include "ns3/netanim-module.h"
 
 using namespace ns3;
 
-static void 
+static void
 CourseChange (std::string foo, Ptr<const MobilityModel> mobility)
 {
   Vector pos = mobility->GetPosition ();
   Vector vel = mobility->GetVelocity ();
-  std::cout << Simulator::Now () << ", model=" << mobility << ", POS: x=" << pos.x << ", y=" << pos.y
-            << ", z=" << pos.z << "; VEL:" << vel.x << ", y=" << vel.y
+  std::cout << Simulator::Now () << ", model=" << mobility << ", POS: x=" << pos.x
+            << ", y=" << pos.y << ", z=" << pos.z << "; VEL:" << vel.x << ", y=" << vel.y
             << ", z=" << vel.z << std::endl;
 }
 
-int main (int argc, char *argv[])
+int
+main (int argc, char *argv[])
 {
   Config::SetDefault ("ns3::RandomWalk2dMobilityModel::Mode", StringValue ("Time"));
   Config::SetDefault ("ns3::RandomWalk2dMobilityModel::Time", StringValue ("2s"));
-  Config::SetDefault ("ns3::RandomWalk2dMobilityModel::Speed", StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"));
+  Config::SetDefault ("ns3::RandomWalk2dMobilityModel::Speed",
+                      StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"));
   Config::SetDefault ("ns3::RandomWalk2dMobilityModel::Bounds", StringValue ("0|200|0|200"));
 
   CommandLine cmd;
@@ -45,19 +48,17 @@ int main (int argc, char *argv[])
   c.Create (100);
 
   MobilityHelper mobility;
-  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator",
-                                 "X", StringValue ("100.0"),
-                                 "Y", StringValue ("100.0"),
-                                 "Rho", StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
-  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
-                             "Mode", StringValue ("Time"),
-                             "Time", StringValue ("2s"),
-                             "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"),
-                             "Bounds", StringValue ("0|200|0|200"));
+  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator", "X", StringValue ("100.0"),
+                                 "Y", StringValue ("100.0"), "Rho",
+                                 StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Mode", StringValue ("Time"), "Time",
+                             StringValue ("2s"), "Speed",
+                             StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"), "Bounds",
+                             StringValue ("0|200|0|200"));
   mobility.InstallAll ();
-  Config::Connect ("/NodeList/*/$ns3::MobilityModel/CourseChange",
-                   MakeCallback (&CourseChange));
-
+  Config::Connect ("/NodeList/*/$ns3::MobilityModel/CourseChange", MakeCallback (&CourseChange));
+  
+  AnimationInterface anim ("netanim/examples.xml");
   Simulator::Stop (Seconds (100.0));
 
   Simulator::Run ();

@@ -44,7 +44,7 @@ MpTcpNdiffPorts::GetTypeId (void)
     .SetGroupName ("Internet")
     .AddConstructor<MpTcpNdiffPorts> ()
     .AddAttribute ("MaxSubflows", "Maximum number of sub-flows per each mptcp connection",
-                  UintegerValue (4),
+                  UintegerValue (2),//(4),
                    MakeUintegerAccessor (&MpTcpNdiffPorts::m_maxSubflows),
                    MakeUintegerChecker<uint8_t> ())
 

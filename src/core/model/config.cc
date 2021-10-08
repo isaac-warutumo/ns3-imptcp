@@ -784,7 +784,8 @@ void SetDefault (std::string name, const AttributeValue &value)
   NS_LOG_FUNCTION (name << &value);
   if (!SetDefaultFailSafe(name, value))
     {
-      NS_FATAL_ERROR ("Could not set default value for " << name);
+      // NS_FATAL_ERROR ("Could not set default value for " << name);
+      NS_LOG_UNCOND("isaac: Could not set default value for " << name);
     }
 }
 bool SetDefaultFailSafe (std::string fullName, const AttributeValue &value)
