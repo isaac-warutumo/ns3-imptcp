@@ -105,8 +105,6 @@ main (int argc, char *argv[])
       mobility.Install (relayExtra);
    }
   
-
-
   /////////////////////creating topology////////////////
   NodeContainer *e0Ri = new NodeContainer[activeRelays];
   NodeContainer *riH1 = new NodeContainer[activeRelays];
