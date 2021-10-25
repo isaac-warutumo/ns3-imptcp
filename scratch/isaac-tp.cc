@@ -53,7 +53,7 @@ main (int argc, char *argv[])
   // initialize a cluster
   Cluster myCluster;
   clusterNodes = myCluster.GenerateClusterNodes (3); //random number of nodes in a cluster
-  activeRelays = myCluster.GenerateActiveRelays (clusterNodes, 5);
+  activeRelays = myCluster.GenerateActiveRelays (clusterNodes, 5);// 5 is a randomizer to generate random number of nodes
   std::cout << "My Cluster has :" << clusterNodes << " nodes\n";
   std::cout << "My Cluster has :" << activeRelays << " relays\n";
 
@@ -112,6 +112,7 @@ main (int argc, char *argv[])
   NodeContainer e0h0 = NodeContainer (enb.Get (0), host.Get (0));
 
   NetDeviceContainer *chiE0Ri = new NetDeviceContainer[activeRelays];
+
 
   //loop through the relays
   for (size_t i = 0; i < activeRelays; i++)
