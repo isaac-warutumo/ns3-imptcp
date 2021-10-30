@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <cassert>
+
 #include "ns3/flow-monitor-module.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/network-module.h"
@@ -24,15 +25,48 @@
 #include "ns3/enum.h"
 #include "ns3/config-store-module.h"
 #include "ns3/isaac-module.h"
+#include <vector>
+#include <algorithm>
+
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("MpTcpTestingExample");
 
+int g_nNodes = 0;
+int g_upperNodeCapacity = 12;
+int* g_arrayWithNodeCapacities;
+int GenerateClusterNodes();
+
 int
 main (int argc, char *argv[])
 {
+  g_nNodes = GenerateClusterNodes();//get some random number of nodes between 3 and 10
+	cout << "g_nNodes: " << g_nNodes << endl;
+	g_arrayWithNodeCapacities = new int[g_nNodes];//a pointer to array to hold cluster node capacities
+	cout << "m_nodeCapacities are :";
+	for (size_t i = 0; i < g_nNodes; i++)
+	{
+		
+		srand(time(0) + static_cast<unsigned long>(i*11));//i will randomize time so that we have truly random capacity
+		g_arrayWithNodeCapacities[i] = 0+(rand() % (g_upperNodeCapacity+1));
+		cout << g_arrayWithNodeCapacities[i] << "\t";
+	}
+	cout << endl;
+	Cluster myCluster(g_nNodes, g_arrayWithNodeCapacities, g_upperNodeCapacity);
 
+	int lowerTbr = 22, upperTbr = 23;
+
+	// Find the number of subsets with desired Sum
+	if (myCluster.findAndPrintSubsets(g_arrayWithNodeCapacities, g_nNodes, lowerTbr, upperTbr) > 0)
+		cout << "Yes Subsets found!!!" << endl;
+	else
+		cout << "No Subsets found!!!" << endl;
+
+	
+// The below value configures the default behavior of global routing.
+  // By default, it is disabled.  To respond to interface events, set to true
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue (true));
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpNewReno"));
   Config::SetDefault ("ns3::BulkSendApplication::SendSize", UintegerValue (4364));
@@ -47,15 +81,13 @@ main (int argc, char *argv[])
   uint16_t port = 999;
   uint32_t maxBytes = 1048576; //1MBs
 
-  size_t clusterNodes = 0;
-  size_t activeRelays = 0;
-  size_t nExtraRelays=0;
-  // initialize a cluster
-  Cluster myCluster;
-  clusterNodes = myCluster.GenerateClusterNodes (3); //random number of nodes in a cluster
-  activeRelays = myCluster.GenerateActiveRelays (clusterNodes, 5);// 5 is a randomizer to generate random number of nodes
-  std::cout << "My Cluster has :" << clusterNodes << " nodes\n";
-  std::cout << "My Cluster has :" << activeRelays << " relays\n";
+
+  // // initialize a cluster
+  // Cluster myCluster;
+  // g_nNodes = myCluster.GenerateClusterNodes (3); //random number of nodes in a cluster
+  // g_nNodes = myCluster.GenerateActiveRelays (g_nNodes, 5);// 5 is a randomizer to generate random number of nodes
+  // std::cout << "My Cluster has :" << g_nNodes << " nodes\n";
+  // std::cout << "My Cluster has :" << g_nNodes << " relays\n";
 
   //Initialize Internet Stack and Routing Protocols
   InternetStackHelper internet;
@@ -73,18 +105,10 @@ main (int argc, char *argv[])
 
   // relay
   NodeContainer relay; // NodeContainer for relay
-  relay.Create (activeRelays);
+  relay.Create (g_nNodes);
   internet.Install (relay);
 
-  NodeContainer relayExtra; // NodeContainer for relay
-  nExtraRelays=clusterNodes - activeRelays;
-  if (nExtraRelays >0)
-   {
-    relay.Create (nExtraRelays);
-    internet.Install (relayExtra);
-   }
-  
-
+ 
   MobilityHelper mobility;
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (enb);
@@ -100,22 +124,18 @@ main (int argc, char *argv[])
                              StringValue ("0|100|0|100"));
   mobility.Install (relay);
   mobility.Install (host.Get(1));
-  if (nExtraRelays >0)
-   {
-      mobility.Install (relayExtra);
-   }
   
   /////////////////////creating topology////////////////
-  NodeContainer *e0Ri = new NodeContainer[activeRelays];
-  NodeContainer *riH1 = new NodeContainer[activeRelays];
+  NodeContainer *e0Ri = new NodeContainer[g_nNodes];
+  NodeContainer *riH1 = new NodeContainer[g_nNodes];
 
   NodeContainer e0h0 = NodeContainer (enb.Get (0), host.Get (0));
 
-  NetDeviceContainer *chiE0Ri = new NetDeviceContainer[activeRelays];
+  NetDeviceContainer *chiE0Ri = new NetDeviceContainer[g_nNodes];
 
 
   //loop through the relays
-  for (size_t i = 0; i < activeRelays; i++)
+  for (size_t i = 0; i < g_nNodes; i++)
     {
       e0Ri[i] = NodeContainer (enb.Get (0), relay.Get (i));
       riH1[i] = NodeContainer (host.Get (1), relay.Get (i));
@@ -128,9 +148,9 @@ main (int argc, char *argv[])
   p2p.SetChannelAttribute ("Delay", StringValue ("1ms")); //ms
 
   NS_LOG_INFO ("Assign IP Addresses.");
-  Ipv4InterfaceContainer *intfiE0Ri = new Ipv4InterfaceContainer[activeRelays];
+  Ipv4InterfaceContainer *intfiE0Ri = new Ipv4InterfaceContainer[g_nNodes];
   ipv4.SetBase ("10.1.2.0", "255.255.255.0");
-  for (size_t i = 0; i < activeRelays; i++)
+  for (size_t i = 0; i < g_nNodes; i++)
     {
       chiE0Ri[i] = p2p.Install (e0Ri[i]);
       intfiE0Ri[i] = ipv4.Assign (chiE0Ri[i]);
@@ -143,10 +163,10 @@ main (int argc, char *argv[])
   p2p.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
   p2p.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
-  NetDeviceContainer *chiRiH1 = new NetDeviceContainer[activeRelays];
-  Ipv4InterfaceContainer *intfiRiH1 = new Ipv4InterfaceContainer[activeRelays];
+  NetDeviceContainer *chiRiH1 = new NetDeviceContainer[g_nNodes];
+  Ipv4InterfaceContainer *intfiRiH1 = new Ipv4InterfaceContainer[g_nNodes];
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-  for (size_t i = 0; i < activeRelays; i++)
+  for (size_t i = 0; i < g_nNodes; i++)
     {
       chiRiH1[i] = p2p.Install (riH1[i]);
       intfiRiH1[i] = ipv4.Assign (chiRiH1[i]);
@@ -205,7 +225,7 @@ main (int argc, char *argv[])
   anim.UpdateNodeImage (2, resourceIdIconEnb);
   anim.UpdateNodeSize (2, 7, 7);
 //relays
-  for (size_t i = 0; i < activeRelays; i++)
+  for (size_t i = 0; i < g_nNodes; i++)
     {
       int x = i * 10;
       anim.SetConstantPosition (relay.Get (i), x, 20.0);
@@ -213,18 +233,12 @@ main (int argc, char *argv[])
 
   uint32_t resourceIdIconPhone =
       anim.AddResource ("/home/ns3/ns-3-dev-git/netanim/icons/phone.png");
-  for (size_t i = 0; i < activeRelays; i++)
+  for (size_t i = 0; i < g_nNodes; i++)
     {
       anim.UpdateNodeImage (i + 3, resourceIdIconPhone);
       anim.UpdateNodeSize (i + 3, 4, 4);
     }
 
-    //other cluster nodes
-    for (size_t i = 0; i <nExtraRelays; i++)
-    {
-      anim.UpdateNodeImage (i + 3+activeRelays, resourceIdIconPhone);
-      anim.UpdateNodeSize (i + 3+activeRelays, 4, 4);
-    }
   //requester
   anim.SetConstantPosition (host.Get (1), 25.0, 50.0);
   anim.UpdateNodeImage (1, resourceIdIconPhone);
@@ -256,7 +270,19 @@ main (int argc, char *argv[])
             << "\n";
 
   Simulator::Destroy ();
+  delete[] g_arrayWithNodeCapacities;//remember to destroy dynamic array holding cluster node  capacities
   monitor->SerializeToXmlFile ("flowmon/isaac-mptcp-1048576flow.xml", true, true);
   Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
   std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
+}
+
+int GenerateClusterNodes()
+{
+	srand(time(0));
+	g_nNodes = 1 + (rand() % 10);
+	if (g_nNodes < 3)
+	{
+		g_nNodes = 3;
+	}
+	return g_nNodes;
 }
