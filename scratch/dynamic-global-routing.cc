@@ -234,6 +234,7 @@ main (int argc, char *argv[])
 
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Run ();
+  
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
 }
