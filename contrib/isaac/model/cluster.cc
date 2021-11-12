@@ -71,15 +71,15 @@ Cluster::generateSubsets (int start, int setSize, int myFullSet[],
       //cout << endl;
     }
 
-  cout << "Half Subset Sums is: " << endl;
-  for (size_t i = 0; i < subsetSumVector2D.size (); i++)
-    {
-      for (size_t j = 0; j < subsetSumVector2D[i].size (); j++)
-        {
-          cout << subsetSumVector2D[i][j] << "\t";
-        }
-      cout << endl;
-    }
+  // cout << "Half Subset Sums is: " << endl;
+  // for (size_t i = 0; i < subsetSumVector2D.size (); i++)
+  //   {
+  //     for (size_t j = 0; j < subsetSumVector2D[i].size (); j++)
+  //       {
+  //         cout << subsetSumVector2D[i][j] << "\t";
+  //       }
+  //     cout << endl;
+  //   }
 }
 void
 Cluster::printHalfSetSumArrays (int myHalfSetSize, vector<vector<int>> &myHalfSetArray2D,
@@ -93,15 +93,15 @@ Cluster::printHalfSetSumArrays (int myHalfSetSize, vector<vector<int>> &myHalfSe
     }
   cout << endl;
 
-  cout << "myHalfSetArray2D" << endl;
-  for (size_t i = 0; i < pow (2, myHalfSetSize); i++)
-    {
-      for (size_t j = 0; j < myHalfSetArray2D[i].size (); j++)
-        {
-          cout << myHalfSetArray2D[i][j] << "\t";
-        }
-      cout << endl;
-    }
+  // cout << "myHalfSetArray2D" << endl;
+  // for (size_t i = 0; i < pow (2, myHalfSetSize); i++)
+  //   {
+  //     for (size_t j = 0; j < myHalfSetArray2D[i].size (); j++)
+  //       {
+  //         cout << myHalfSetArray2D[i][j] << "\t";
+  //       }
+  //     cout << endl;
+  //   }
 }
 int
 Cluster::findAndPrintSubsets (int myFullSet[], size_t nElements, int lowerLimit, int upperLimit)
@@ -129,7 +129,7 @@ Cluster::findAndPrintSubsets (int myFullSet[], size_t nElements, int lowerLimit,
   //Generate subset sums for the first half set
   int nHalfSet1 = nElements / 2;
   generateSubsets (0, nHalfSet1, myFullSet, halfSet1Sum2D, halfSet1Sum1D);
-  cout << "Generated subset sums for halfSet1" << endl;
+  // cout << "Generated subset sums for halfSet1" << endl;
 
   //Generate subset sums for the second half set
   int nHalfSet2 = 0;
@@ -140,14 +140,14 @@ Cluster::findAndPrintSubsets (int myFullSet[], size_t nElements, int lowerLimit,
 
   generateSubsets (nElements / 2, nHalfSet2, myFullSet, halfSet2Sum2D, halfSet2Sum1D);
 
-  cout << "Generated subset sums for halfSet1" << endl;
+  // cout << "Generated subset sums for halfSet1" << endl;
   printHalfSetSumArrays (nHalfSet1, halfSet1Sum2D, halfSet1Sum1D);
 
   // Sort the second half set
   sort (halfSet2Sum2D.begin (), halfSet2Sum2D.end (), sortcol);
   sort (halfSet2Sum1D.begin (), halfSet2Sum1D.end ());
 
-  cout << "My ordered halfSet2Sum \n";
+  //cout << "My ordered halfSet2Sum \n";
   printHalfSetSumArrays (nHalfSet2, halfSet2Sum2D, halfSet2Sum1D);
 
   // Vector Iterator for S1 and S2;
@@ -189,15 +189,15 @@ Cluster::findAndPrintSubsets (int myFullSet[], size_t nElements, int lowerLimit,
         }
       sort (finalSet2D.begin (), finalSet2D.end (), sortcol);
     }
-  cout << "finalSet2D printout" << endl;
-  for (size_t i = 0; i < finalSet2D.size (); i++)
-    {
-      for (size_t j = 0; j < finalSet2D[i].size (); j++)
-        {
-          cout << finalSet2D[i][j] << "\t";
-        }
-      cout << endl;
-    }
+  // cout << "finalSet2D printout" << endl;
+  // for (size_t i = 0; i < finalSet2D.size (); i++)
+  //   {
+  //     for (size_t j = 0; j < finalSet2D[i].size (); j++)
+  //       {
+  //         cout << finalSet2D[i][j] << "\t";
+  //       }
+  //     cout << endl;
+  //   }
   cout << "nSubsetsFound: " << nSubsetsFound << endl;
 
   return nSubsetsFound;
