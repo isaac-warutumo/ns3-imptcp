@@ -53,7 +53,7 @@ main (int argc, char *argv[])
   // Explicitly create the point-to-point link required by the topology (shown above).
   //
   PointToPointHelper pointToPoint;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("70Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ps"));
 
   NetDeviceContainer devices;
@@ -84,7 +84,7 @@ main (int argc, char *argv[])
   //source.SetAttribute ("PacketSize", UintegerValue (1024));
   //
   ApplicationContainer sourceApps = source.Install (nodes.Get (0));
-  sourceApps.Start (NanoSeconds (1.0));
+  sourceApps.Start (NanoSeconds (0.0));
   sourceApps.Stop (Seconds (20.0));
 
   //
@@ -92,7 +92,7 @@ main (int argc, char *argv[])
   //
   PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port));
   ApplicationContainer sinkApps = sink.Install (nodes.Get (1));
-  sinkApps.Start (NanoSeconds (1.0));
+  sinkApps.Start (NanoSeconds (0.0));
   sinkApps.Stop (Seconds (20.0));
 
   //

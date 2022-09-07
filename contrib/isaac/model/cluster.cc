@@ -23,6 +23,7 @@ start --> Starting Index of the Set for the	first/second half Set
 setSize --> Number of element in half Set
 mySet --> Original Complete Set
 subsetSumVector --> Store the subsets sums */
+
 void
 Cluster::generateSubsets (int start, int setSize, int myFullSet[],
                           vector<vector<int>> &subsetSumVector2D, vector<int> &subsetSumVector1D)
@@ -189,15 +190,15 @@ Cluster::findAndPrintSubsets (int myFullSet[], size_t nElements, int lowerLimit,
         }
       sort (finalSet2D.begin (), finalSet2D.end (), sortcol);
     }
-  // cout << "finalSet2D printout" << endl;
-  // for (size_t i = 0; i < finalSet2D.size (); i++)
-  //   {
-  //     for (size_t j = 0; j < finalSet2D[i].size (); j++)
-  //       {
-  //         cout << finalSet2D[i][j] << "\t";
-  //       }
-  //     cout << endl;
-  //   }
+  cout << "finalSet2D printout" << endl;
+  for (size_t i = 0; i < finalSet2D.size (); i++)
+    {
+      for (size_t j = 0; j < finalSet2D[i].size (); j++)
+        {
+          cout << finalSet2D[i][j] << "\t";
+        }
+      cout << endl;
+    }
   cout << "nSubsetsFound: " << nSubsetsFound << endl;
 
   return nSubsetsFound;

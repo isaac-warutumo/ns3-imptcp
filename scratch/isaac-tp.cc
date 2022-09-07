@@ -3,8 +3,8 @@
 #include <fstream>
 #include <string>
 #include <cassert>
-       
-//iomanip required for setprecision(3) 
+
+//iomanip required for setprecision(3)
 #include <iomanip>
 
 #include "ns3/flow-monitor-module.h"
@@ -36,7 +36,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("MpTcpTestingExample");
 
 size_t g_nNodes = 0;
-int g_upperNodeCapacity = 12;
+int g_upperNodeCapacity = 10;
 int *g_arrayWithNodeCapacities;
 int GenerateClusterNodes ();
 
@@ -53,7 +53,7 @@ main (int argc, char *argv[])
     }
   if (g_nNodes < 3)
     { //get some random number of nodes between 3 and 10
-      g_nNodes = 3; //GenerateClusterNodes ();
+      g_nNodes = 3; //GenerateClusterNodes ();//to be passed as an argument
     }
   cout << "g_nNodes: " << g_nNodes << endl;
   //a pointer to array to hold cluster node capacities
@@ -64,13 +64,20 @@ main (int argc, char *argv[])
       //11*i will randomize time so that we have truly random capacity
       srand (time (0) + static_cast<unsigned long> (i * 11));
       //minimum node capacity is set to 1
-      g_arrayWithNodeCapacities[i] = 1 + (rand () % (g_upperNodeCapacity + 1));
+      g_arrayWithNodeCapacities[i] =
+          1 + (rand () % (g_upperNodeCapacity + 1)); //to be passed as an argument
       cout << g_arrayWithNodeCapacities[i] << "\t";
     }
   cout << endl;
   Cluster myCluster (g_nNodes, g_arrayWithNodeCapacities, g_upperNodeCapacity);
+  int tbr = 10;
+  //to be passed as an argument - held constant factor - 10Mbps for latency sensitive and 50Mbps for capacity sensitive expts
+  int tbrRange = 15; //to be passed as an argument (5,10,15)
 
-  int lowerTbr = 22, upperTbr = 23;
+  int lowerTbr, upperTbr;
+
+  lowerTbr = (int) round ((1 - tbrRange / 100) * tbr);
+  upperTbr = (int) round ((1 + tbrRange / 100) * tbr);
 
   // Find the number of subsets with desired Sum
   if (myCluster.findAndPrintSubsets (g_arrayWithNodeCapacities, g_nNodes, lowerTbr, upperTbr) > 0)
@@ -80,6 +87,7 @@ main (int argc, char *argv[])
 
   // The below value configures the default behavior of global routing.
   // By default, it is disabled.  To respond to interface events, set to true
+
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue (true));
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpNewReno"));
@@ -88,8 +96,8 @@ main (int argc, char *argv[])
   //Enable MPTCP
   Config::SetDefault ("ns3::TcpSocketBase::EnableMpTcp", BooleanValue (true));
   Config::SetDefault ("ns3::MpTcpSocketBase::PathManagerMode",
-                      EnumValue (MpTcpSocketBase::nDiffPorts));
-  // Config::SetDefault ("ns3::MpTcpNdiffPorts::MaxSubflows", UintegerValue (1));
+                      EnumValue (MpTcpSocketBase::Default));
+  //Config::SetDefault ("ns3::MpTcpNdiffPorts::MaxSubflows", UintegerValue (2));
 
   //Variables Declaration
   uint16_t port = 999;
@@ -118,17 +126,17 @@ main (int argc, char *argv[])
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (enb);
   mobility.Install (host.Get (0));
-
-  // mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator", "X", StringValue ("10"), "Y",
-  //                                StringValue ("20"), "Rho",
-  //                                StringValue ("ns3::UniformRandomVariable[Min=0|Max=10]"));
-
-  // mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Mode", StringValue ("Time"), "Time",
-  //                            StringValue ("2s"), "Speed",
-  //                            StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"), "Bounds",
-  //                            StringValue ("0|100|0|100"));
-  mobility.Install (relay);
   mobility.Install (host.Get (1));
+
+  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator", "X", StringValue ("10"), "Y",
+                                 StringValue ("20"), "Rho",
+                                 StringValue ("ns3::UniformRandomVariable[Min=0|Max=10]"));
+
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Mode", StringValue ("Time"), "Time",
+                             StringValue ("2s"), "Speed",
+                             StringValue ("ns3::ConstantRandomVariable[Constant=1.0]"), "Bounds",
+                             StringValue ("0|100|0|100"));
+  mobility.Install (relay);
 
   /////////////////////creating topology////////////////
   //remember to deallocate these dynamic arrays
@@ -147,14 +155,11 @@ main (int argc, char *argv[])
       riH1[i] = NodeContainer (host.Get (1), relay.Get (i));
     }
   NS_LOG_INFO ("Create channels.");
-
-  PointToPointHelper p2p;
-
+  PointToPointHelper p2pRelay;
   //defince stringValue depening on the node capacity
   stringstream nodeCapacityStream;
   string nodeCapacity = "";
   //p2p.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
-  p2p.SetChannelAttribute ("Delay", StringValue ("1ns")); //ms
 
   NS_LOG_INFO ("Assign IP Addresses.");
   Ipv4InterfaceContainer *intfiE0Ri = new Ipv4InterfaceContainer[g_nNodes];
@@ -167,17 +172,19 @@ main (int argc, char *argv[])
       nodeCapacity = nodeCapacityStream.str ();
 
       cout << "node: " << i << " Capacity: " << nodeCapacity << endl;
-      p2p.SetDeviceAttribute ("DataRate", StringValue (nodeCapacity));
-      chiE0Ri[i] = p2p.Install (e0Ri[i]);
+      p2pRelay.SetDeviceAttribute ("DataRate", StringValue (nodeCapacity));
+      p2pRelay.SetChannelAttribute ("Delay", StringValue ("1ns")); //ms
+      chiE0Ri[i] = p2pRelay.Install (e0Ri[i]);
       intfiE0Ri[i] = ipv4.Assign (chiE0Ri[i]);
     }
+  PointToPointHelper p2pEnbHost;
+  p2pEnbHost.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+  p2pEnbHost.SetChannelAttribute ("Delay", StringValue ("1ns"));
+  NetDeviceContainer ch4e0h0 = p2pEnbHost.Install (e0h0);
 
-  p2p.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
-  p2p.SetChannelAttribute ("Delay", StringValue ("1ns"));
-  NetDeviceContainer ch4e0h0 = p2p.Install (e0h0);
-
-  p2p.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
-  p2p.SetChannelAttribute ("Delay", StringValue ("1ns"));
+  PointToPointHelper p2pD2d;
+  p2pD2d.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+  p2pD2d.SetChannelAttribute ("Delay", StringValue ("1ns"));
 
   //some additional dynamic arrays to be deallocated
   NetDeviceContainer *chiRiH1 = new NetDeviceContainer[g_nNodes];
@@ -186,7 +193,7 @@ main (int argc, char *argv[])
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
   for (size_t i = 0; i < g_nNodes; i++)
     {
-      chiRiH1[i] = p2p.Install (riH1[i]);
+      chiRiH1[i] = p2pD2d.Install (riH1[i]);
       intfiRiH1[i] = ipv4.Assign (chiRiH1[i]);
     }
 
@@ -194,8 +201,6 @@ main (int argc, char *argv[])
 
   ipv4.SetBase ("10.1.3.0", "255.255.255.0");
   Ipv4InterfaceContainer i4e0h0 = ipv4.Assign (ch4e0h0);
-
-  //Attach the UEs to an eNB. This will configure each UE according to the eNB configuration, and create an RRC connection between them:
 
   //initialize routing database and set up the routing tables in the nodes.
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
@@ -210,12 +215,12 @@ main (int argc, char *argv[])
   ApplicationContainer sourceApps;
 
   sourceApps.Add (source.Install (host.Get (0)));
-  sourceApps.Start (NanoSeconds (2.0));
+  sourceApps.Start (Seconds (0.0));
   sourceApps.Stop (Seconds (100.0));
 
   PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), port));
   ApplicationContainer sinkApps = sink.Install (host.Get (1));
-  sinkApps.Start (NanoSeconds (1.0));
+  sinkApps.Start (Seconds (0.0));
   sinkApps.Stop (Seconds (100.0));
 
   //=========== Start the simulation ===========//
@@ -224,10 +229,10 @@ main (int argc, char *argv[])
 
   //tracemetrics trace file
   AsciiTraceHelper ascii;
-  // p2p.EnableAsciiAll (ascii.CreateFileStream ("tracemetrics/isaac-mptcp-1048576.tr"));
-  p2p.EnableAscii (ascii.CreateFileStream ("tracemetrics/isaac-mptcp-1048576.tr"), relay);
+
+  p2pRelay.EnableAscii (ascii.CreateFileStream ("tracemetrics/isaac-mptcp.tr"), relay);
   ////////////////////////// Use of NetAnim model/////////////////////////////////////////
-  AnimationInterface anim ("netanim/mptcp-1048576.xml");
+  AnimationInterface anim ("netanim/isaac-tp.xml");
 
   //NodeContainer server
   anim.SetConstantPosition (host.Get (0), 25.0, 0.0);
@@ -276,18 +281,29 @@ main (int argc, char *argv[])
   // FlowMonitorHelper flowmon;
   // Ptr<FlowMonitor> monitor = flowmon.Install(relay);//flowmon.InstallAll ();
 
-  //p2p.EnablePcapAll ("flowmon/isaac-p2pCapmptcp-1048576");
+  p2pRelay.EnablePcapAll ("pcap/isaac-p2pCapmptcp");
 
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Stop (Seconds (100.0));
+
   //flow monitor config
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+
+  //schedule events
+  Ptr<Node> n1 = enb.Get (0);
+  Ptr<Ipv4> ipv41 = n1->GetObject<Ipv4> ();
+  // The first ifIndex is 0 for loopback, then the first p2p is numbered 1,
+  // then the next p2p is numbered 2
+  uint32_t ipv4ifIndex1 = 2;
+  Simulator::Schedule (MicroSeconds (200), &Ipv4::SetDown, ipv41, ipv4ifIndex1);
+  Simulator::Schedule (MicroSeconds (400), &Ipv4::SetUp, ipv41, ipv4ifIndex1);
 
   Simulator::Run ();
 
   // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
   // int totalBytesRx = sink1->GetTotalRx ();
+  int64x64_t totalThroughput = 0;
 
   monitor->CheckForLostPackets ();
   Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
@@ -297,35 +313,36 @@ main (int argc, char *argv[])
     {
       Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
       //do not print ack flows
-      if (t.sourceAddress=="10.1.3.2")
-      {
-         std::cout << "Flow " << i->first - 1 << " (" << t.sourceAddress << " -> "
-                << t.destinationAddress << ")\n";
-      std::cout << "  Tx Bytes:   " << i->second.txBytes/1024 << "KBs \n";
-      std::cout << "  Rx Bytes:   " << i->second.rxBytes/1024 << "KBs \n";
+      if (t.sourceAddress == "10.1.3.2")
+        {
+          std::cout << "Flow " << i->first - 1 << " (" << t.sourceAddress << " -> "
+                    << t.destinationAddress << ")\n";
+          std::cout << "  Tx Bytes:   " << i->second.txBytes / 1024 << "KBs \n";
+          std::cout << "  Rx Bytes:   " << i->second.rxBytes / 1024 << "KBs \n";
 
-      //rxbytes*8=bits; nanoseconds=pow(10,9); Mbps=pow(10,6);
-      //Mbps/nanoseconds=pow(10,3)
-      std::cout << "  Throughput: "<< setiosflags(ios::fixed) << setprecision(3) 
-                << i->second.rxBytes * 8.0 * pow (10, 3) /
-                       (i->second.timeLastRxPacket - i->second.timeFirstRxPacket)
-                << " Mbps\n";
-      std::cout << "  Tx Packets:   " << i->second.txPackets << "\n";
-      std::cout << "  Rx Packets:   " << i->second.rxPackets << "\n";
-      // std::cout << "  Delay Sum:   " << i->second.delaySum << "\n";
-      // std::cout << "  Average Delay:   " << i->second.delaySum / i->second.rxPackets << "\n";
-      }
-      
-     
+          //rxbytes*8=bits; nanoseconds=pow(10,9); Mbps=pow(10,6);
+          //Mbps/nanoseconds=pow(10,3)
+          std::cout << "  Throughput: " << setiosflags (ios::fixed) << setprecision (3)
+                    << i->second.rxBytes * 8.0 * pow (10, 3) /
+                           (i->second.timeLastRxPacket - i->second.timeFirstRxPacket)
+                    << " Mbps\n";
+          totalThroughput += i->second.rxBytes * 8.0 * pow (10, 3) /
+                             (i->second.timeLastRxPacket - i->second.timeFirstRxPacket);
+          std::cout << "  Tx Packets:   " << i->second.txPackets << "\n";
+          std::cout << "  Rx Packets:   " << i->second.rxPackets << "\n";
+          // std::cout << "  Delay Sum:   " << i->second.delaySum << "\n";
+          // std::cout << "  Average Delay:   " << i->second.delaySum / i->second.rxPackets << "\n";
+        }
     }
+  std::cout << " MPTCP  Throughput: " << setiosflags (ios::fixed) << setprecision (3)
+            << totalThroughput << " Mbps\n";
 
-  // flowMonitor->SerializeToXmlFile ("flowmon/tcp-bulk-sendflow.xml", true, true);
+  monitor->SerializeToXmlFile ("flowmon/isaac-tp.xml", true, true);
 
   NS_LOG_INFO ("Done.");
 
   std::cout << "Simulation finished "
             << "\n";
-  //monitor->SerializeToXmlFile("flowmon/second.xml",false, true);
 
   Simulator::Destroy ();
 

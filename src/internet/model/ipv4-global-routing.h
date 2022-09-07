@@ -238,6 +238,7 @@ private:
   bool m_respondToInterfaceEvents;
   /// A uniform random number generator for randomly routing packets among ECMP 
   Ptr<UniformRandomVariable> m_rand;
+  Ptr<NormalRandomVariable> m_randNomal;
 
   /// container of Ipv4RoutingTableEntry (routes to hosts)
   typedef std::list<Ipv4RoutingTableEntry *> HostRoutes;

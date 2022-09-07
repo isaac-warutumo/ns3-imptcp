@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/csma-module.h"
@@ -7,100 +6,116 @@
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
 
+#include "ns3/netanim-module.h"
+
+//flow monitor
 #include "ns3/flow-monitor-module.h"
 #include "ns3/flow-monitor-helper.h"
-// Default Network Topology
-//
-//       10.1.1.0
-// n0 -------------- n1   n2   n3   n4
-//    point-to-point  |    |    |    |
-//                    ================
-//                      LAN 10.1.2.0
+
+//iomanip required for setprecision(3)
+#include <iomanip>
 
 using namespace ns3;
+using namespace std;
 
-NS_LOG_COMPONENT_DEFINE ("SecondScriptExample");
+NS_LOG_COMPONENT_DEFINE ("TestRoutingExample");
 
 int
 main (int argc, char *argv[])
 {
-  bool verbose = true;
-  uint32_t nCsma = 3;
+  LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
+  LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
+  Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting",
+                      BooleanValue (true)); // enable multi-path routing
+  Config::SetDefault ("ns3::TcpSocketBase::EnableMpTcp", BooleanValue (true));
 
-  CommandLine cmd;
-  cmd.AddValue ("nCsma", "Number of \"extra\" CSMA nodes/devices", nCsma);
-  cmd.AddValue ("verbose", "Tell echo applications to log if true", verbose);
+  Ptr<Node> n0 = CreateObject<Node> ();
+  Ptr<Node> n1 = CreateObject<Node> ();
+  Ptr<Node> n2 = CreateObject<Node> ();
+  Ptr<Node> n3 = CreateObject<Node> ();
+  Ptr<Node> n4 = CreateObject<Node> ();
 
-  cmd.Parse (argc, argv);
+  Names::Add ("n0", n0);
+  Names::Add ("n1", n1);
+  Names::Add ("n2", n2);
+  Names::Add ("n3", n3);
+  Names::Add ("n4", n4);
 
-  if (verbose)
-    {
-      LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
-      LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
-    }
+  NodeContainer n0n1 (n0, n1);
+  NodeContainer n1n2 (n1, n2);
+  NodeContainer n1n3 (n1, n3);
+  NodeContainer n3n4 (n3, n4);
+  NodeContainer n2n4 (n2, n4);
 
-  nCsma = nCsma == 0 ? 1 : nCsma;
+  NodeContainer global (n0, n1, n2, n3, n4);
 
-  NodeContainer p2pNodes;
-  p2pNodes.Create (2);
+  // create link
+  PointToPointHelper p2p;
+  p2p.SetDeviceAttribute ("DataRate", StringValue ("25Mbps"));
+  p2p.SetChannelAttribute ("Delay", StringValue ("2ps"));
+  NetDeviceContainer d0d1 = p2p.Install (n0n1);
+  NetDeviceContainer d1d2 = p2p.Install (n1n2);
+  NetDeviceContainer d2d4 = p2p.Install (n2n4);
 
-  NodeContainer csmaNodes;
-  csmaNodes.Add (p2pNodes.Get (1));
-  csmaNodes.Create (nCsma);
+  p2p.SetDeviceAttribute ("DataRate", StringValue ("50Mbps"));
+  NetDeviceContainer d1d3 = p2p.Install (n1n3);
+  NetDeviceContainer d3d4 = p2p.Install (n3n4);
+  // create internet stack
+  InternetStackHelper internet;
+  internet.Install (global);
 
-  PointToPointHelper pointToPoint;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
+  Ipv4AddressHelper ipv4;
 
-  NetDeviceContainer p2pDevices;
-  p2pDevices = pointToPoint.Install (p2pNodes);
+  ipv4.SetBase ("10.0.0.0", "255.255.255.0");
+  Ipv4InterfaceContainer i0i1 = ipv4.Assign (d0d1);
 
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue ("100Mbps"));
-  csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
+  ipv4.SetBase ("10.1.1.0", "255.255.255.0");
+  Ipv4InterfaceContainer i1i2 = ipv4.Assign (d1d2);
 
-  NetDeviceContainer csmaDevices;
-  csmaDevices = csma.Install (csmaNodes);
+  ipv4.SetBase ("10.2.2.0", "255.255.255.0");
+  Ipv4InterfaceContainer i1i3 = ipv4.Assign (d1d3);
 
-  InternetStackHelper stack;
-  stack.Install (p2pNodes.Get (0));
-  stack.Install (csmaNodes);
+  ipv4.SetBase ("10.3.3.0", "255.255.255.0");
+  Ipv4InterfaceContainer i2i4 = ipv4.Assign (d2d4);
 
-  Ipv4AddressHelper address;
-  address.SetBase ("10.1.1.0", "255.255.255.0");
-  Ipv4InterfaceContainer p2pInterfaces;
-  p2pInterfaces = address.Assign (p2pDevices);
-
-  address.SetBase ("10.1.2.0", "255.255.255.0");
-  Ipv4InterfaceContainer csmaInterfaces;
-  csmaInterfaces = address.Assign (csmaDevices);
-
-  UdpEchoServerHelper echoServer (9);
-
-  ApplicationContainer serverApps = echoServer.Install (csmaNodes.Get (nCsma));
-  serverApps.Start (Seconds (1.0));
-  serverApps.Stop (Seconds (10.0));
-
-  UdpEchoClientHelper echoClient (csmaInterfaces.GetAddress (nCsma), 9);
-  echoClient.SetAttribute ("MaxPackets", UintegerValue (1));
-  echoClient.SetAttribute ("Interval", TimeValue (Seconds (1.0)));
-  echoClient.SetAttribute ("PacketSize", UintegerValue (1024));
-
-  ApplicationContainer clientApps = echoClient.Install (p2pNodes.Get (0));
-  clientApps.Start (Seconds (2.0));
-  clientApps.Stop (Seconds (10.0));
+  ipv4.SetBase ("10.4.4.0", "255.255.255.0");
+  Ipv4InterfaceContainer i3i4 = ipv4.Assign (d3d4);
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-  pointToPoint.EnablePcapAll ("pcap/second");
-  csma.EnablePcap ("second", csmaDevices.Get (1), true);
+  // install application
+  UdpEchoServerHelper echoServer1 (9999);
+  ApplicationContainer serverApps1 = echoServer1.Install (n4);
+  serverApps1.Start (Seconds (0.0));
+  serverApps1.Stop (Seconds (1000.0));
 
-  FlowMonitorHelper flowHelper;
-  Ptr<FlowMonitor> flowMonitor = flowHelper.InstallAll ();
+  // n0 -> n4
+  UdpEchoClientHelper echoClient1 (i2i4.GetAddress (1), 9999);
+  echoClient1.SetAttribute ("MaxPackets", UintegerValue (200));
+  echoClient1.SetAttribute ("Interval", TimeValue (Seconds (0)));
+  echoClient1.SetAttribute ("PacketSize", UintegerValue (1024));
+  ApplicationContainer clientApps1 = echoClient1.Install (n0);
+  clientApps1.Start (Seconds (0));
+  clientApps1.Stop (Seconds (10.0));
+
+  //tracemetrics trace file
+  AsciiTraceHelper ascii;
+
+  p2p.EnableAsciiAll (ascii.CreateFileStream ("tracemetrics/second.tr"));
+
+  // dump config
+  p2p.EnablePcapAll ("pcap/second");
+
+  AnimationInterface anim ("netanim/isaac-tp.xml");
+  anim.SetConstantPosition (n0, 0.0, 10.0);
+  anim.SetConstantPosition (n1, 20.0, 10.0);
+  anim.SetConstantPosition (n2, 35.0, 5.0);
+  anim.SetConstantPosition (n3, 35.0, 15.0);
+  anim.SetConstantPosition (n4, 50.0, 10.0);
 
   Simulator::Run ();
-  flowMonitor->SerializeToXmlFile ("flowmon/second.xml", false, false);
 
   Simulator::Destroy ();
+
   return 0;
 }
